@@ -46,7 +46,7 @@ module.exports = function(app) {
            && typeof position != 'undefined'
            && typeof radius != 'undefined' )
       {
-        startWatchingPosistion()
+        startWatchingPosition()
       }
 
       if ( app.registerActionHandler ) {
@@ -121,7 +121,7 @@ module.exports = function(app) {
     configuration["radius"] = value
     if ( configuration["position"] ) {
       configuration["on"] = true
-      startWatchingPosistion()
+      startWatchingPosition()
     }
 
     try {
@@ -171,7 +171,7 @@ module.exports = function(app) {
         //configuration["radius"] = value.radius
         if ( configuration["radius"] ) {
           configuration["on"] = true
-          startWatchingPosistion()
+          startWatchingPosition()
         }
 
         savePluginOptions()
@@ -205,7 +205,7 @@ module.exports = function(app) {
     onStop = []
   }
 
-  function startWatchingPosistion()
+  function startWatchingPosition()
   {
     if ( onStop.length > 0 )
       return
@@ -360,7 +360,7 @@ module.exports = function(app) {
           configuration.position.altitude = depth * -1;
         }
 
-        startWatchingPosistion()
+        startWatchingPosition()
 
         try {
           savePluginOptions()
@@ -594,7 +594,7 @@ module.exports = function(app) {
         configuration.position.altitude = depth * -1
       }
     
-      startWatchingPosistion()
+      startWatchingPosition()
     
       try {
         savePluginOptions()
