@@ -1,7 +1,7 @@
 /*
  * Copyright 2016 Scott Bender <scott@scottbender.net>
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
+ * Licensed under the Apache License, Version 2.0 (the "License")
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
@@ -13,7 +13,7 @@
  * limitations under the License.
  */
 
-const Bacon = require('baconjs');
+const Bacon = require('baconjs')
 const _ = require('lodash')
 const path = require('path')
 const fs = require('fs')
@@ -22,7 +22,7 @@ const geolib = require('geolib')
 const subscribrPeriod = 1000
 
 module.exports = function(app) {
-  var plugin = {};
+  var plugin = {}
   var alarm_sent = false
   let onStop = []
   var positionInterval
@@ -48,6 +48,8 @@ module.exports = function(app) {
       {
         startWatchingPosition()
       }
+
+      initApiEndpoints()
 
       if ( app.registerActionHandler ) {
         app.registerActionHandler('vessels.self',
@@ -82,7 +84,7 @@ module.exports = function(app) {
       
     } catch (e) {
       plugin.started = false
-      app.error("error: " + e);
+      app.error("error: " + e)
       console.error(e.stack)
       return e
     }
@@ -161,7 +163,7 @@ module.exports = function(app) {
       if ( value == null ) {
         raiseAnchor()
       } else {
-        var delta = getAnchorDelta(app, null, value, null, configuration["radius"], true, null);
+        var delta = getAnchorDelta(app, null, value, null, configuration["radius"], true, null)
         app.handleMessage(plugin.id, delta)
         
         configuration["position"] = { "latitude": value.latitude,
@@ -321,122 +323,11 @@ module.exports = function(app) {
 
   plugin.registerWithRouter = function(router) {
     router.post("/dropAnchor", (req, res) => {
-      var vesselPosition = app.getSelfPath('navigation.position')
-      if ( vesselPosition && vesselPosition.value )
-        vesselPosition = vesselPosition.value
-      
-      if ( typeof vesselPosition == 'undefined' )
-      {
-        app.debug("no position available")
-        res.status(403)
-        res.json({
-          statusCode: 403,
-          state: 'FAILED',
-          message: "no position available"
-        })
-      }
-      else
-      {
-
-        let position = computeBowLocation(vesselPosition,
-                                      app.getSelfPath('navigation.headingTrue.value'))
-        
-        app.debug("set anchor position to: " + position.latitude + " " + position.longitude)
-        var radius = req.body['radius']
-        if ( typeof radius == 'undefined' )
-          radius = null
-        var delta = getAnchorDelta(app, vesselPosition, position, 0, radius, true, null);
-        app.handleMessage(plugin.id, delta)
-
-        app.debug("anchor delta: " + JSON.stringify(delta))
-        
-        configuration["position"] = { "latitude": position.latitude,
-                                      "longitude": position.longitude }
-        configuration["radius"] = radius
-        configuration["on"] = true
-
-        var depth = app.getSelfPath('environment.depth.belowSurface.value')
-        if ( depth ) {
-          configuration.position.altitude = depth * -1;
-        }
-
-        startWatchingPosition()
-
-        try {
-          savePluginOptions()
-          res.json({
-            statusCode: 200,
-            state: 'COMPLETED'
-          })
-        } catch ( err ) {
-          app.error(err)
-          res.status(500)
-          res.json({
-            statusCode: 500,
-            state: 'FAILED',
-            message: "can't save config"
-          })
-        }
-      }
+      dropAnchor(req.body['radius'], res)
     })
     
     router.post("/setRadius", (req, res) => {
-      let position = app.getSelfPath('navigation.position')
-      if ( position.value )
-        position = position.value
-      if ( typeof position == 'undefined' )
-      {
-        app.debug("no position available")
-        res.status(403)
-        res.json({
-          statusCode: 403,
-          state: 'FAILED',
-          message: "no position available"
-        })
-      }
-      else
-      {
-        var radius = req.body['radius']
-        if ( typeof radius == 'undefined' )
-        {
-          app.debug("config: %o", configuration)
-          radius = calc_distance(configuration.position.latitude,
-                                 configuration.position.longitude,
-                                 position.latitude,
-                                 position.longitude)
-          
-          var fudge = configuration.fudge
-          if ( typeof fudge !== 'undefined' && fudge > 0 )
-          {
-            radius += fudge
-          }
-          app.debug("calc_distance: " + radius)
-        }
-
-        app.debug("set anchor radius: " + radius)
-
-        var delta = getAnchorDelta(app, position, configuration.position, null,
-                                   radius, false, null);
-        app.handleMessage(plugin.id, delta)
-        
-        configuration["radius"] = radius
-
-        try {
-          savePluginOptions()
-          res.json({
-            statusCode: 200,
-            state: 'COMPLETED'
-          })
-        } catch ( err ) {
-          app.error(err)
-          res.status(500)
-          res.json({
-            statusCode: 500,
-            state: 'FAILED',
-            message: "can't save config"
-          })
-        }
-      }
+      setRadius(req.body['radius'], res)
     })
 
     router.post("/raiseAnchor", (req, res) => {
@@ -458,6 +349,8 @@ module.exports = function(app) {
     })
 
     router.post("/setAnchorPosition", (req, res) => {
+      setPosition(req.body['position'], res)
+      /*
       var old_pos = app.getSelfPath('navigation.anchor.position.value')
       var depth
 
@@ -470,7 +363,7 @@ module.exports = function(app) {
       var maxRadius = app.getSelfPath('navigation.anchor.maxRadius.value')
 
       var delta = getAnchorDelta(app, null, position, null,
-                                 maxRadius, false, depth);
+                                 maxRadius, false, depth)
 
       app.debug("setAnchorPosition: " + JSON.stringify(delta))
       app.handleMessage(plugin.id, delta)
@@ -496,23 +389,265 @@ module.exports = function(app) {
           message: "can't save config"
         })
       }
-    });
+      */
+    })
 
     router.post("/setManualAnchor", (req, res) => {
       app.debug("set manual anchor")
       var depth = req.body['anchorDepth']
       var rode = req.body['rodeLength']
       var result = setManualAnchor(depth, rode)
-      res.status(result.statusCode)
-      res.json(result.message)
+      res.status(result.statusCode).json({
+        statusCode: 200,
+        state: 'COMPLETED'
+      })
     })
 
     
   }
 
+
+  const dropAnchor = (radius, res) => {
+    let vesselPosition = app.getSelfPath('navigation.position')
+      if ( vesselPosition && vesselPosition.value )
+        vesselPosition = vesselPosition.value
+      
+      if ( typeof vesselPosition == 'undefined' )
+      {
+        app.debug("no position available")
+        res.status(403).json({
+          statusCode: 403,
+          state: 'FAILED',
+          message: "no position available"
+        })
+      }
+      else
+      {
+        let position = computeBowLocation(vesselPosition,
+                                      app.getSelfPath('navigation.headingTrue.value'))
+        
+        app.debug("set anchor position to: " + position.latitude + " " + position.longitude)
+
+        if ( typeof radius == 'undefined' )
+          radius = null
+        let delta = getAnchorDelta(app, vesselPosition, position, 0, radius, true, null)
+        app.handleMessage(plugin.id, delta)
+
+        app.debug("anchor delta: " + JSON.stringify(delta))
+        
+        configuration["position"] = { "latitude": position.latitude,
+                                      "longitude": position.longitude }
+        configuration["radius"] = radius
+        configuration["on"] = true
+
+        let depth = app.getSelfPath('environment.depth.belowSurface.value')
+        if ( depth ) {
+          configuration.position.altitude = depth * -1
+        }
+
+        startWatchingPosition()
+
+        try {
+          savePluginOptions()
+          res.json({
+            statusCode: 200,
+            state: 'COMPLETED'
+          })
+        } catch ( err ) {
+          app.error(err)
+          res.status(500).json({
+            statusCode: 500,
+            state: 'FAILED',
+            message: "can't save config"
+          })
+        }
+      }
+  }
+
+  const setRadius = (radius, res) => {
+    let position = app.getSelfPath('navigation.position')
+    if ( position && position.value )
+      position = position.value
+    if ( typeof position == 'undefined' )
+    {
+      app.debug("no position available")
+      return res.status(403).json({
+        statusCode: 403,
+        state: 'FAILED',
+        message: "no position available"
+      })
+    }
+    else
+    {
+      if ( typeof radius == 'undefined' )
+      {
+        app.debug("config: %o", configuration)
+        radius = calc_distance(configuration.position.latitude,
+                                configuration.position.longitude,
+                                position.latitude,
+                                position.longitude)
+        
+        let fudge = configuration.fudge
+        if ( typeof fudge !== 'undefined' && fudge > 0 )
+        {
+          radius += fudge
+        }
+        app.debug("calc_distance: " + radius)
+      }
+
+      app.debug("set anchor radius: " + radius)
+
+      let delta = getAnchorDelta(app, position, configuration.position, null,
+                                  radius, false, null)
+      app.handleMessage(plugin.id, delta)
+      
+      configuration["radius"] = radius
+
+      try {
+        savePluginOptions()
+        return res.json({
+          statusCode: 200,
+          state: 'COMPLETED'
+        })
+      } catch ( err ) {
+        app.error(err)
+        return res.status(500).json({
+          statusCode: 500,
+          state: 'FAILED',
+          message: "can't save config"
+        })
+      }
+    }
+  }
+
+  const setPosition = (position, res) => {
+    app.debug(position)
+    let old_pos = app.getSelfPath('navigation.anchor.position.value')
+    let depth
+
+    if ( old_pos && old_pos.altitude ) {
+      depth = old_pos.altitude
+    }
+
+    let maxRadius = app.getSelfPath('navigation.anchor.maxRadius.value')
+
+    let delta = getAnchorDelta(app, null, position, null,
+                               maxRadius, false, depth)
+
+    app.debug("setAnchorPosition: " + JSON.stringify(delta))
+    app.handleMessage(plugin.id, delta)
+
+    configuration["position"] = {
+      latitude: position.latitude,
+      longitude: position.longitude,
+      altitude: depth
+    }
+
+    try {
+      savePluginOptions()
+      res.json({
+        statusCode: 200,
+        state: 'COMPLETED'
+      })
+    } catch ( err ) {
+      app.error(err)
+      res.status(500).json({
+        statusCode: 500,
+        state: 'FAILED',
+        message: "can't save config"
+      })
+    }
+  }
+
+
+  const initApiEndpoints = () => {
+    const apiPath = '/signalk/v2/api/vessels/self/navigation/anchor'
+
+    app.debug(`*** Initializing Anchor API endpoints..... ${apiPath}`)
+
+    app.use(`${apiPath}`, (req, res, next) => {
+      if(
+        app.securityStrategy.shouldAllowPut(
+          req,
+          'vessels.self',
+          null,
+          'navigation.anchor'
+        )
+      ) {
+        next()
+      } else {
+        res.status(401).json({
+          statusCode: 401, 
+          state: "FAILED", 
+          message: "Unauthorised."
+        })
+      }
+    })
+
+    app.post(`${apiPath}/drop`, async (req, res) => {
+      app.debug(`${req.method} ${req.path}`)
+      dropAnchor(req.body['radius'], res)
+    })
+
+    app.post(`${apiPath}/drop/set`, async (req, res) => {
+      app.debug(`${req.method} ${req.path}`)
+      setRadius(undefined, res)
+    })
+
+    app.post(`${apiPath}/raise`, async (req, res) => {
+      app.debug(`${req.method} ${req.path}`)
+      try {
+        raiseAnchor()
+        res.status(200).json({
+          statusCode: 200,
+          state: 'COMPLETED'
+        })
+      } catch ( err ) {
+        app.error(err)
+        res.status(500).json({
+          statusCode: 500,
+          state: 'FAILED',
+          message: "can't save config"
+        })
+      }
+    })
+
+    app.post(`${apiPath}/radius`, async (req, res) => {
+      app.debug(`${req.method} ${req.path}`)
+      setRadius(req.body['value'], res)
+    })
+
+    app.post(`${apiPath}/position`, async (req, res) => {
+      app.debug(`${req.method} ${req.path}`)
+      setPosition(req.body['value'], res)
+    })
+
+    app.post(`${apiPath}/position/calc`, async (req, res) => {
+      app.debug(`${req.method} ${req.path}`)
+      try {
+        app.debug("set manual anchor")
+        let depth = req.body['anchorDepth']
+        let rode = req.body['rodeLength']
+        let result = setManualAnchor(depth, rode)
+        res.status(result.statusCode).json({
+          statusCode: 200,
+          state: 'COMPLETED'
+        })
+      } catch ( err ) {
+        app.error(err)
+        res.status(500)
+        res.json({
+          statusCode: 500,
+          state: 'FAILED',
+          message: err.message | 'Error setting anchor!'
+        })
+      }
+    })
+  }
+
   function setManualAnchor(depth, rode) {
       var position = app.getSelfPath('navigation.position')
-      if ( position.value )
+      if ( position && position.value )
         position = position.value
       if ( typeof position == 'undefined' )
       {
@@ -533,7 +668,7 @@ module.exports = function(app) {
       
       app.debug("anchor rode: " + rode + " depth: " + depth)
 
-      var maxRadius = rode;
+      var maxRadius = rode
 
       if ( depth == 0 )
       {
@@ -546,7 +681,7 @@ module.exports = function(app) {
 
       if ( depth != 0 && rode != 0 )
       {
-        var height = configuration.bowHeight;
+        var height = configuration.bowHeight
         var heightFromBow = depth
         if ( typeof height !== 'undefined' && height > 0 )
         {
@@ -561,7 +696,7 @@ module.exports = function(app) {
       app.debug("heading: " + heading)
       app.debug("maxRadius: " + maxRadius)
 
-      var gps_dist = app.getSelfPath("sensors.gps.fromBow.value");
+      var gps_dist = app.getSelfPath("sensors.gps.fromBow.value")
       if ( typeof gps_dist != 'undefined' )
       {
         maxRadius += gps_dist
@@ -578,7 +713,7 @@ module.exports = function(app) {
       var newposition = calc_position_from(app, position, heading, curRadius)
 
       var delta = getAnchorDelta(app, position, newposition, curRadius,
-                                 maxRadius, true, depth);
+                                 maxRadius, true, depth)
       app.handleMessage(plugin.id, delta)
       
       delete configuration["position"]
@@ -608,6 +743,8 @@ module.exports = function(app) {
   plugin.id = "anchoralarm"
   plugin.name = "Anchor Alarm"
   plugin.description = "Plugin that checks the vessel position to see if there's anchor drift"
+  plugin.feature = "anchor"
+  plugin.getOpenApi = () => require('./openApi.json')
 
   plugin.schema = {
     title: "Anchor Alarm",
@@ -702,7 +839,7 @@ module.exports = function(app) {
       var position = {
         "latitude": position.latitude,
         "longitude": position.longitude
-      };
+      }
       
       if ( isSet )
       {
@@ -718,7 +855,7 @@ module.exports = function(app) {
       }
       else
       {
-        var depth = configuration.position.altitude
+        depth = configuration.position ? configuration.position.altitude : undefined
             //_.get(app.signalk.self,
 	//	          'navigation.anchor.position.altitude')
         if ( typeof depth != 'undefined' )
@@ -811,12 +948,12 @@ module.exports = function(app) {
       if ( typeof configuration.bowHeight !== 'undefined' ) {
         values.push({
           path: 'design.bowAnchorHight',
-          value: configuration.bowHeight});
+          value: configuration.bowHeight})
       }
       if ( typeof configuration.fudge !== 'undefined' ) {
         values.push({
           path: 'navigation.anchor.fudgeFactor',
-          value: configuration.fudge});
+          value: configuration.fudge})
       }
     }
     else
@@ -856,7 +993,7 @@ module.exports = function(app) {
     }
 
     //app.debug("anchor delta: " + util.inspect(delta, {showHidden: false, depth: 6}))
-    return delta;
+    return delta
   }
 
 
@@ -864,9 +1001,9 @@ module.exports = function(app) {
     //app.debug("in checkPosition: " + possition.latitude + ',' + anchor_position.latitude)
 
     var meters = calc_distance(possition.latitude, possition.longitude,
-                               anchor_position.latitude, anchor_position.longitude);
+                               anchor_position.latitude, anchor_position.longitude)
     
-    app.debug("distance: " + meters + ", radius: " + radius);
+    app.debug("distance: " + meters + ", radius: " + radius)
     
     var delta = getAnchorDelta(app, possition, anchor_position, meters, radius, false)
     app.handleMessage(plugin.id, delta)
@@ -906,7 +1043,7 @@ module.exports = function(app) {
   function computeBowLocation(position, heading) {
     if ( typeof heading != 'undefined' )
     {
-      var gps_dist = app.getSelfPath("sensors.gps.fromBow.value");
+      var gps_dist = app.getSelfPath("sensors.gps.fromBow.value")
       app.debug("gps_dist: " + gps_dist)
       if ( typeof gps_dist != 'undefined' )
       {
@@ -971,24 +1108,22 @@ module.exports = function(app) {
     }
   }
 
-
-   
-  return plugin;
+  return plugin
 }
 
 function calc_distance(lat1,lon1,lat2,lon2) {
   //app.debug("calc_distance: " + lat1 + ", " + lon1 + ", " + lat2 + ", " + lon2)
-  var R = 6371000; // Radius of the earth in m
-  var dLat = degsToRad(lat2-lat1);  // deg2rad below
-  var dLon = degsToRad(lon2-lon1); 
+  var R = 6371000 // Radius of the earth in m
+  var dLat = degsToRad(lat2-lat1)  // deg2rad below
+  var dLon = degsToRad(lon2-lon1) 
   var a = 
     Math.sin(dLat/2) * Math.sin(dLat/2) +
     Math.cos(degsToRad(lat1)) * Math.cos(degsToRad(lat2)) * 
     Math.sin(dLon/2) * Math.sin(dLon/2)
-    ; 
-  var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); 
-  var d = R * c; // Distance in m
-  return d;
+     
+  var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)) 
+  var d = R * c // Distance in m
+  return d
 }
 
 function calc_position_from(app, position, heading, distance)
@@ -1036,7 +1171,7 @@ function getAnchorAlarmDelta(app, state, msg)
         }
       ]
   }
-  return delta;
+  return delta
 }
 
 function radsToDeg(radians) {
@@ -1044,7 +1179,7 @@ function radsToDeg(radians) {
 }
 
 function degsToRad(degrees) {
-  return degrees * (Math.PI/180.0);
+  return degrees * (Math.PI/180.0)
 }
 
 function mod(x,y){

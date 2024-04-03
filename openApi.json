@@ -1,0 +1,332 @@
+{
+    "openapi": "3.0.0",
+    "info": {
+      "version": "2.0.0",
+      "title": "Signal K Anchor API",
+      "termsOfService": "http://signalk.org/terms/",
+      "license": {
+        "name": "Apache 2.0",
+        "url": "http://www.apache.org/licenses/LICENSE-2.0.html"
+      }
+    },
+    "externalDocs": {
+      "url": "http://signalk.org/specification/",
+      "description": "Signal K specification."
+    },
+    "servers": [
+      {
+        "url": "/signalk/v2/api/anchor"
+      }
+    ],
+    "tags": [
+      {
+        "name": "anchor",
+        "description": "Anchor operations"
+      }
+    ],
+    "components": {
+      "schemas": {
+        "AnchorRadius": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Radius in meters",
+          "example": 65
+        },
+        "AnchorDepth": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Depth of anchor in meters",
+          "example": 30
+        },
+        "RodeLength": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Rode length in meters",
+          "example": 55
+        }
+      },
+      "responses": {
+        "200Ok": {
+          "description": "OK",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "state": {
+                    "type": "string",
+                    "enum": ["COMPLETED"]
+                  },
+                  "statusCode": {
+                    "type": "number",
+                    "enum": [200]
+                  }
+                },
+                "required": ["state", "statusCode"]
+              }
+            }
+          }
+        },
+        "ErrorResponse": {
+          "description": "Failed operation",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "description": "Request error response",
+                "properties": {
+                  "state": {
+                    "type": "string",
+                    "enum": ["FAILED"]
+                  },
+                  "statusCode": {
+                    "type": "number",
+                    "enum": [404]
+                  },
+                  "message": {
+                    "type": "string"
+                  }
+                },
+                "required": ["state", "statusCode", "message"]
+              }
+            }
+          }
+        },
+        "CourseResponse": {
+          "description": "Course details",
+          "content": {
+            "application/json": {
+              "schema": {
+                "description": "Course response",
+                "type": "object",
+                "required": ["activeRoute", "nextPoint", "previousPoint"],
+                "properties": {
+                  "activeRoute": {
+                    "anyOf": [
+                      {
+                        "$ref": "#/components/schemas/ActiveRouteModel"
+                      }
+                    ]
+                  },
+                  "nextPoint": {
+                    "anyOf": [
+                      {
+                        "$ref": "#/components/schemas/PointModel"
+                      }
+                    ]
+                  },
+                  "previousPoint": {
+                    "anyOf": [
+                      {
+                        "$ref": "#/components/schemas/PointModel"
+                      }
+                    ]
+                  },
+                  "startTime": {
+                    "$ref": "#/components/schemas/IsoTime",
+                    "example": "2022-04-22T05:02:56.484Z",
+                    "description": "Time at which navigation to destination commenced."
+                  },
+                  "targetArrivalTime": {
+                    "$ref": "#/components/schemas/IsoTime",
+                    "example": "2022-04-22T05:02:56.484Z",
+                    "description": "The desired time at which to arrive at the destination."
+                  },
+                  "arrivalCircle": {
+                    "$ref": "#/components/schemas/ArrivalCircle"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "securitySchemes": {
+        "bearerAuth": {
+          "type": "http",
+          "scheme": "bearer",
+          "bearerFormat": "JWT"
+        },
+        "cookieAuth": {
+          "type": "apiKey",
+          "in": "cookie",
+          "name": "JAUTHENTICATION"
+        }
+      }
+    },
+    "security": [{ "cookieAuth": [] }, { "bearerAuth": [] }],
+    "paths": {
+      "/drop": {
+        "post": {
+          "tags": ["anchor"],
+          "summary": "Drop anchor and optionally set radius.",
+          "description": "If `radius` is supplied this value is set as `maxRadius`. If `radius` value is not supplied, call `/drop/set` to calculate the `maxRadius` value.",
+          "requestBody": {
+            "required": false,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "radius": {
+                      "$ref": "#/components/schemas/AnchorRadius"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "responses": {
+            "200": {
+              "$ref": "#/components/responses/200Ok"
+            },
+            "default": {
+              "$ref": "#/components/responses/ErrorResponse"
+            }
+          }
+        }
+      },
+      "/drop/set": {
+        "post": {
+          "tags": ["anchor"],
+          "summary": "Anchor lowered, calculate radius.",
+          "description": "Indicates the anchor has been lowered and the rode let out, triggers calculation of `maxRadius` value.",
+          "responses": {
+            "200": {
+              "$ref": "#/components/responses/200Ok"
+            },
+            "default": {
+              "$ref": "#/components/responses/ErrorResponse"
+            }
+          }
+        }
+      },
+      "/raise": {
+        "post": {
+          "tags": ["anchor"],
+          "summary": "Raise anchor.",
+          "description": "Start raising the anchor.",
+          "responses": {
+            "200": {
+              "$ref": "#/components/responses/200Ok"
+            },
+            "default": {
+              "$ref": "#/components/responses/ErrorResponse"
+            }
+          }
+        }
+      },
+      "/radius": {
+        "post": {
+          "tags": ["anchor"],
+          "summary": "Set / adjust anchor alarm radius.",
+          "description": "Sets the maximum distance in meters the vessel can be from the anchor position before an alarm is raised.",
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "value": {
+                      "$ref": "#/components/schemas/AnchorRadius"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "responses": {
+            "200": {
+              "$ref": "#/components/responses/200Ok"
+            },
+            "default": {
+              "$ref": "#/components/responses/ErrorResponse"
+            }
+          }
+        }
+      },
+      "/position": {
+        "post": {
+          "tags": ["anchor"],
+          "summary": "Set anchor position.",
+          "description": "Set the anchor position to the supplied location.",
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["rodeLength"],
+                  "properties": {
+                    "value": {
+                      "type": "object",
+                      "required": ["latitude","longitude"],
+                      "properties": {
+                        "latitude": {
+                          "type": "number",
+                          "min": -90,
+                          "max": 90
+                        },
+                        "longitude": {
+                          "type": "number",
+                          "min": -180,
+                          "max": 180
+                        },
+                        "altitude": {
+                          "type": "number",
+                          "max": 0
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "responses": {
+            "200": {
+              "$ref": "#/components/responses/200Ok"
+            },
+            "default": {
+              "$ref": "#/components/responses/ErrorResponse"
+            }
+          }
+        }
+      },
+      "/position/calc": {
+        "post": {
+          "tags": ["anchor"],
+          "summary": "Calculate the anchor position.",
+          "description": "Calculate the anchor position after rode is let out. Position is estimated based on heading, depth and `rodeLength`. If `anchorDepth` is not supplied then the `depthFromSurface` path value will be used if available.",
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["rodeLength"],
+                  "properties": {
+                    "anchorDepth": {
+                      "$ref": "#/components/schemas/AnchorDepth"
+                    },
+                    "rodeLength": {
+                      "$ref": "#/components/schemas/RodeLength"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "responses": {
+            "200": {
+              "$ref": "#/components/responses/200Ok"
+            },
+            "default": {
+              "$ref": "#/components/responses/ErrorResponse"
+            }
+          }
+        }
+      }
+    }
+  }

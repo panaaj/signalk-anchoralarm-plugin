@@ -58,4 +58,40 @@ curl -X POST -H "Content-Type: application/json" -d '{}' http://localhost:3000/p
 curl -X POST -H "Content-Type: application/json" -d '{"anchorDepth": 3, "rodeLength":30}' http://localhost:3000/plugins/anchoralarm/setManualAnchor
 ```
 
+## Signal K v2 Anchor API
+
+Support has been added for the for the Signal K v2 Anchor API so all actions can now be 
+initiated using these end points.
+
+And OpenAPI definition is avilable from within the Signal K Server Admin UI.
+
+### Drop anchor (equivalent to `dropAnchor`):
+
+
+```
+curl -X POST -H "Content-Type: application/json" -d '{}' http://localhost:3000/signalk/v2/api/vessels/self/navigation/anchor/drop
+```
+
+### After you have let the anchor rode out, calculate and set the alarm radius.
+
+```
+curl -X POST -H "Content-Type: application/json" -d '{}' http://localhost:3000/signalk/v2/api/vessels/self/navigation/anchor/drop/set
+```
+
+### Adjust the radius (in meters) (equivalent to `setRadius`):
+
+```
+curl -X POST -H "Content-Type: application/json" -d '{"value": 30}' http://localhost:3000/signalk/v2/api/vessels/self/navigation/anchor/radius
+```
+
+### Raise the anchor (equivalent to `raiseAnchor`)
+
+```
+curl -X POST -H "Content-Type: application/json" -d '{}' http://localhost:3000/signalk/v2/api/vessels/self/navigation/anchor/raise
+```
+
+### Set the anchor position after you have already let the rode out (equivalent to `setManualAnchor`)
+
+```
+curl -X POST -H "Content-Type: application/json" -d '{"anchorDepth": 3, "rodeLength":30}' http://localhost:3000/signalk/v2/api/vessels/self/navigation/anchor/position/calc
 
